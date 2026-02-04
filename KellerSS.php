@@ -155,6 +155,7 @@ foreach ($propriedadesSuspeitas as $prop => $info) {
 
 echo $bold . $verde . "  ✓ Verificação de propriedades concluída\n" . $cln;
 
+
     echo "\n" . $bold . $azul . "┌─────────────────────────────────────────────────────────────────┐\n";
     echo $bold . $azul . "│ [5] VERIFICANDO BINÁRIOS SU (SUPERUSUÁRIO)                      │\n";
     echo $bold . $azul . "└─────────────────────────────────────────────────────────────────┘\n" . $cln;
@@ -1011,7 +1012,7 @@ function escanearFreeFire($pacote, $nomeJogo) {
         }
     } else {
         echo $bold . $fverde . "  ℹ Nenhum replay foi passado e a pasta MReplays está normal.\n";
-
+    }
 
     if (!empty($resultadoPasta)) {
         preg_match('/Access: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)/', $resultadoPasta, $matchAccessPasta);
