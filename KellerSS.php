@@ -139,7 +139,6 @@ function detectarBypassShell() {
         'ro.boot.flash.locked' => ['valor' => '0', 'descricao' => 'Flash desbloqueado'],
         'ro.boot.veritymode' => ['valor' => 'disabled', 'descricao' => 'dm-verity desabilitado'],
         'sys.oem_unlock_allowed' => ['valor' => '1', 'descricao' => 'OEM unlock permitido'],
-        'persist.sys.usb.config' => ['valor' => 'adb', 'descricao' => 'ADB persistente ativo'],
         'ro.kernel.qemu' => ['valor' => '1', 'descricao' => 'Emulador detectado'],
     ];
 
@@ -1506,3 +1505,4 @@ escolheropcoes:
       }
 
 ?>
+
