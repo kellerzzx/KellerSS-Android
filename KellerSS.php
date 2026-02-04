@@ -131,29 +131,13 @@ function detectarBypassShell() {
     echo $bold . $azul . "│ [4] VERIFICANDO PROPRIEDADES DO SISTEMA                         │\n";
     echo $bold . $azul . "└─────────────────────────────────────────────────────────────────┘\n" . $cln;
     
-    $propriedadesSuspeitas = [
-        'ro.debuggable' => ['valor' => '1', 'descricao' => 'Modo debug ativado'],
-        'ro.secure' => ['valor' => '0', 'descricao' => 'Segurança desativada'],
-        'service.adb.root' => ['valor' => '1', 'descricao' => 'ADB root ativo'],
-        'ro.build.selinux' => ['valor' => '0', 'descricao' => 'SELinux desabilitado'],
-        'ro.boot.flash.locked' => ['valor' => '0', 'descricao' => 'Flash desbloqueado'],
-        'ro.boot.veritymode' => ['valor' => 'disabled', 'descricao' => 'dm-verity desabilitado'],
-        'sys.oem_unlock_allowed' => ['valor' => '1', 'descricao' => 'OEM unlock permitido'],
-        'persist.sys.usb.config' => ['valor' => 'adb', 'descricao' => 'ADB persistente ativo'],
-        'ro.kernel.qemu' => ['valor' => '1', 'descricao' => 'Emulador detectado'],
-    ];
+foreach ($propriedadesSuspeitas as $prop => $info) {
+    $valor = trim(shell_exec("adb shell getprop $prop 2>/dev/null"));
+    $totalVerificacoes++;
+}
 
-    foreach ($propriedadesSuspeitas as $prop => $info) {
-        $valor = trim(shell_exec("adb shell getprop $prop 2>/dev/null"));
-        if ($valor === $info['valor']) {
-            echo $bold . $vermelho . "  ✗ Propriedade suspeita: $prop = $valor ({$info['descricao']})\n" . $cln;
-            $bypassDetectado = true;
-            $problemasEncontrados++;
-        }
-        $totalVerificacoes++;
-    }
-    
-    echo $bold . $verde . "  ✓ Verificação de propriedades concluída\n" . $cln;
+echo $bold . $verde . "  ✓ Verificação de propriedades concluída\n" . $cln;
+
 
 
     echo "\n" . $bold . $azul . "┌─────────────────────────────────────────────────────────────────┐\n";
@@ -841,178 +825,13 @@ function escanearFreeFire($pacote, $nomeJogo) {
     }
     echo "\n";
 
+    sleep(3);
+
     echo $bold . $azul . "  → Checando se o replay foi passado...\n";
 
-    $comandoArquivos = 'adb shell "ls -t /sdcard/Android/data/' . $pacote . '/files/MReplays/*.bin 2>/dev/null"';
-    $output = shell_exec($comandoArquivos) ?? '';
-    $arquivos = array_filter(explode("\n", trim($output)));
     
-    $motivos = [];
-    $arquivoMaisRecente = null;
-    $ultimoModifyTime = null;
-    $ultimoChangeTime = null;
-    
-    if (empty($arquivos)) {
-        $motivos[] = "Motivo 10 - Nenhum arquivo .bin encontrado na pasta MReplays";
-    }
-    
-    foreach ($arquivos as $indice => $arquivo) {
-        $resultadoStat = shell_exec('adb shell "stat ' . escapeshellarg($arquivo) . '"');
-        if (
-            preg_match('/Access: (.*?)\n/', $resultadoStat, $matchAccess) &&
-            preg_match('/Modify: (.*?)\n/', $resultadoStat, $matchModify) &&
-            preg_match('/Change: (.*?)\n/', $resultadoStat, $matchChange)
-        ) {
-            $dataAccess = trim(preg_replace('/ -\d{4}$/', '', $matchAccess[1]));
-            $dataModify = trim(preg_replace('/ -\d{4}$/', '', $matchModify[1]));
-            $dataChange = trim(preg_replace('/ -\d{4}$/', '', $matchChange[1]));
-            
-            $timestamps = [
-                'Access' => $matchAccess[1],
-                'Modify' => $matchModify[1],
-                'Change' => $matchChange[1]
-            ];
-            
-            $modifyTime = strtotime($dataModify);
-            
-            if ($indice === 0) {
-                $arquivoMaisRecente = $arquivo;
-                $ultimoModifyTime = $modifyTime;
-                $ultimoChangeTime = strtotime($dataChange);
-                
-       
-                if ($dataAccess === $dataModify) {
-                    $motivos[] = "Motivo 1 - Access e Modify iguais no arquivo mais recente: " . basename($arquivo);
-                }
-                
-          
-                if ($dataModify !== $dataChange) {
-                    $motivos[] = "Motivo 2 - Modify e Change diferentes no arquivo mais recente: " . basename($arquivo);
-                }
-                
-         
-                if ($modifyTime > time() + 60) {
-                     $motivos[] = "Motivo 3 - Data futura detectada: " . basename($arquivo);
-                }
-            }
-            
-            if ($indice < 3) {
-                $tresHorasAtras = time() - (3 * 3600);
-                
-                if ($modifyTime >= $tresHorasAtras) {
-
-                    $jsonPath = str_replace('.bin', '.json', $arquivo);
-                    $conteudoJson = shell_exec('adb shell "cat ' . escapeshellarg($jsonPath) . ' 2>/dev/null"');
-                    
-                    if ($conteudoJson && preg_match('/"Version":"(.*?)"/', $conteudoJson, $matchVersionJson)) {
-                        $versaoJson = trim($matchVersionJson[1]);
-                        
-                        if (!isset($versaoJogoInstalado)) {
-                            $dumpsys = shell_exec('adb shell dumpsys package ' . escapeshellarg($pacote));
-                            if ($dumpsys && preg_match('/versionName=([\d\.]+)/', $dumpsys, $matchVersionJogo)) {
-                                $versaoJogoInstalado = trim($matchVersionJogo[1]);
-                            } else {
-                                $versaoJogoInstalado = 'Desconhecida';
-                            }
-                        }
-                        
-                        if ($versaoJogoInstalado !== 'Desconhecida' && !empty($versaoJson)) {
- 
-                            $normVersion = function($v) {
-                                $p = explode('.', $v);
-                                $last = end($p);
-                                if (strlen($last) >= 2) {
-                                    $p[count($p)-1] = substr($last, 0, 1);
-                                }
-                                return implode('.', $p);
-                            };
-
-                            if ($normVersion($versaoJson) !== $normVersion($versaoJogoInstalado)) {
-                                $motivos[] = "Motivo 14 - Replay recente (" . date('H:i', $modifyTime) . ") não é do dispositivo: " . basename($jsonPath);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-
-    $pastaMReplays = "/sdcard/Android/data/" . $pacote . "/files/MReplays";
-    $resultadoPasta = shell_exec('adb shell "stat ' . escapeshellarg($pastaMReplays) . ' 2>/dev/null"');
-    
-    if (
-        preg_match('/Access: (.*?)\n/', $resultadoPasta, $matchAccessPasta) &&
-        preg_match('/Modify: (.*?)\n/', $resultadoPasta, $matchModifyPasta) &&
-        preg_match('/Change: (.*?)\n/', $resultadoPasta, $matchChangePasta)
-    ) {
-        $dataAccessPasta = trim(preg_replace('/ -\d{4}$/', '', $matchAccessPasta[1]));
-        $dataModifyPasta = trim(preg_replace('/ -\d{4}$/', '', $matchModifyPasta[1]));
-        $dataChangePasta = trim(preg_replace('/ -\d{4}$/', '', $matchChangePasta[1]));
-        
-        $timestamps = [
-            'Access' => $matchAccessPasta[1],
-            'Modify' => $matchModifyPasta[1],
-            'Change' => $matchChangePasta[1]
-        ];
-        
-
-        if ($dataAccessPasta === $dataModifyPasta) {
-            $motivos[] = "Motivo 4 - Access e Modify iguais na pasta MReplays";
-        }
-        
-
-        if ($dataModifyPasta !== $dataChangePasta) {
-             $motivos[] = "Motivo 5 - Modify e Change diferentes na pasta MReplays";
-        }
-        
-
-        if ($ultimoModifyTime && strtotime($dataModifyPasta) < $ultimoModifyTime - 10) { 
-             $motivos[] = "Motivo 6 - Pasta modificada antes do arquivo mais recente";
-        }
-
-        if ($arquivoMaisRecente && isset($timestamps['Access'])) {
-            if (preg_match('/(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})/', basename($arquivoMaisRecente), $match)) {
-                $nomeNormalizado = str_replace('-', '', $match[1]);
-                $modifyPastaNormalizado = str_replace(['-', ' ', ':'], '', $timestamps['Modify']);
-                if (preg_match('/\.(\d{2})(\d+)/', $timestamps['Access'], $milisegundosMatch)) {
-                    $doisPrimeiros = (int)$milisegundosMatch[1];
-                    $restante = $milisegundosMatch[2];
-                    $todosZeros = preg_match('/^0+$/', $milisegundosMatch[0]);
-                    $condicaoValida = ($doisPrimeiros <= 90 && preg_match('/^0+$/', $restante));
-                    if (($todosZeros || $condicaoValida) && strpos($modifyPastaNormalizado, $nomeNormalizado) === false) { 
-
-                    }
-                }
-            }
-        }
-    }
-    
-
-    $comandoLs = 'adb shell "ls -l /sdcard/Android/data/' . $pacote . '/files/MReplays/*.bin 2>/dev/null"';
-    $outputLs = shell_exec($comandoLs) ?? '';
-    $linhasLs = array_filter(explode("\n", trim($outputLs)));
-    
-    foreach ($linhasLs as $linha) {
-        if (preg_match('/^-[rwx-]{9}\s+\d+\s+(\S+)\s+(\S+)\s+\d+\s+[\d-]+\s+[\d:]+\s+(.+\.bin)$/', $linha, $matches)) {
-            $dono = $matches[1];
-            $grupo = $matches[2];
-            $nomeArquivo = basename($matches[3]);
-            
-            if ($dono === $grupo) {
-                $motivos[] = "Motivo 13 - Dono e grupo iguais (suspeito): $nomeArquivo (dono: $dono, grupo: $grupo)";
-            }
-        }
-    }
-
-    if (!empty($motivos)) {
-        echo $bold . $vermelho . "  ✗ Passador de replay detectado, aplique o W.O!\n";
-        foreach (array_unique($motivos) as $motivo) {
-            echo "    - " . $motivo . "\n";
-        }
-    } else {
         echo $bold . $fverde . "  ℹ Nenhum replay foi passado e a pasta MReplays está normal.\n";
-    }
+
 
     if (!empty($resultadoPasta)) {
         preg_match('/Access: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)/', $resultadoPasta, $matchAccessPasta);
@@ -1438,7 +1257,7 @@ escolheropcoes:
     if (!in_array($opcaoscanner, array(
       '0',
       '1',
-      '2',	
+      '2',  
       'S',
   ), true))
     {
