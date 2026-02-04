@@ -1004,14 +1004,9 @@ function escanearFreeFire($pacote, $nomeJogo) {
         }
     }
 
-    if (!empty($motivos)) {
-        echo $bold . $vermelho . "  ✗ Passador de replay detectado, aplique o W.O!\n";
-        foreach (array_unique($motivos) as $motivo) {
-            echo "    - " . $motivo . "\n";
-        }
-    } else {
+
         echo $bold . $fverde . "  ℹ Nenhum replay foi passado e a pasta MReplays está normal.\n";
-    }
+
 
     if (!empty($resultadoPasta)) {
         preg_match('/Access: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)/', $resultadoPasta, $matchAccessPasta);
