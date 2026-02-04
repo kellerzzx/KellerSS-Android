@@ -1004,7 +1004,7 @@ function escanearFreeFire($pacote, $nomeJogo) {
         }
     }
 
-   if (false && !empty($motivos)) {
+    if (!empty($motivos)) {
         echo $bold . $vermelho . "  ✗ Passador de replay detectado, aplique o W.O!\n";
         foreach (array_unique($motivos) as $motivo) {
             echo "    - " . $motivo . "\n";
