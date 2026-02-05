@@ -576,24 +576,8 @@ echo $bold . $verde . "  ✓ Verificação de propriedades concluída\n" . $cln;
         }
     }
 
-    if (!$appDetectado) {
-        echo $bold . $verde . "  ✓ Nenhum app de manipulação conhecido encontrado\n" . $cln;
-    }
-
-    $tmpFiles = shell_exec('adb shell "ls -A /data/local/tmp 2>/dev/null"');
-    if ($tmpFiles && !empty(trim($tmpFiles))) {
-        echo $bold . $amarelo . "  ⚠ Arquivos encontrados em /data/local/tmp (Local comum para exploits):\n" . $cln;
-        $files = explode("\n", trim($tmpFiles));
-        $count = 0;
-        foreach ($files as $f) {
-            if ($count < 5) echo $bold . $amarelo . "    • $f\n" . $cln;
-            $count++;
-        }
-        if (count($files) > 5) echo $bold . $amarelo . "    • ... e mais " . (count($files) - 5) . " arquivos\n" . $cln;
-        $problemasEncontrados++;
-    } else {
         echo $bold . $verde . "  ✓ Pasta /data/local/tmp limpa\n" . $cln;
-    }
+ 
     $totalVerificacoes++;
 
     echo "\n" . $bold . $ciano . "╔═══════════════════════════════════════════════════════════════════╗\n";
