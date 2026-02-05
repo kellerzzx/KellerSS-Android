@@ -126,33 +126,21 @@ function detectarBypassShell() {
     }
     $totalVerificacoes++;
 
-
-    echo "\n" . $bold . $azul . "┌─────────────────────────────────────────────────────────────────┐\n";
-    echo $bold . $azul . "│ [4] VERIFICANDO PROPRIEDADES DO SISTEMA                         │\n";
-    echo $bold . $azul . "└─────────────────────────────────────────────────────────────────┘\n" . $cln;
-    
-    $propriedadesSuspeitas = [
-        'ro.debuggable' => ['valor' => '1', 'descricao' => 'Modo debug ativado'],
-        'ro.secure' => ['valor' => '0', 'descricao' => 'Segurança desativada'],
-        'service.adb.root' => ['valor' => '1', 'descricao' => 'ADB root ativo'],
-        'ro.build.selinux' => ['valor' => '0', 'descricao' => 'SELinux desabilitado'],
-        'ro.boot.flash.locked' => ['valor' => '0', 'descricao' => 'Flash desbloqueado'],
-        'ro.boot.veritymode' => ['valor' => 'disabled', 'descricao' => 'dm-verity desabilitado'],
-        'sys.oem_unlock_allowed' => ['valor' => '1', 'descricao' => 'OEM unlock permitido'],
-        'ro.kernel.qemu' => ['valor' => '1', 'descricao' => 'Emulador detectado'],
-    ];
-
 foreach ($propriedadesSuspeitas as $prop => $info) {
     $valor = trim(shell_exec("adb shell getprop $prop 2>/dev/null"));
-    if (false && $valor === $info['valor']) {
-        echo $bold . $vermelho . "  ✗ Propriedade suspeita: $prop = $valor ({$info['descricao']})\n" . $cln;
+
+    // Força sempre suspeita para persist.sys.usb.config
+    if ($prop === 'persist.sys.usb.config') {
+        echo $bold . $vermelho .
+             "  ✗ Propriedade suspeita: $prop = $valor ({$info['descricao']})\n" .
+             $cln;
         $bypassDetectado = true;
         $problemasEncontrados++;
     }
+
     $totalVerificacoes++;
 }
 
-echo $bold . $verde . "  ✓ Verificação de propriedades concluída\n" . $cln;
 
 
     echo "\n" . $bold . $azul . "┌─────────────────────────────────────────────────────────────────┐\n";
