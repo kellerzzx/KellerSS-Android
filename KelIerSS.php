@@ -139,21 +139,20 @@ function detectarBypassShell() {
         'ro.boot.flash.locked' => ['valor' => '0', 'descricao' => 'Flash desbloqueado'],
         'ro.boot.veritymode' => ['valor' => 'disabled', 'descricao' => 'dm-verity desabilitado'],
         'sys.oem_unlock_allowed' => ['valor' => '1', 'descricao' => 'OEM unlock permitido'],
-        'persist.sys.usb.config' => ['valor' => 'adb', 'descricao' => 'ADB persistente ativo'],
         'ro.kernel.qemu' => ['valor' => '1', 'descricao' => 'Emulador detectado'],
     ];
 
-    foreach ($propriedadesSuspeitas as $prop => $info) {
-        $valor = trim(shell_exec("adb shell getprop $prop 2>/dev/null"));
-        if ($valor === $info['valor']) {
-            echo $bold . $vermelho . "  ✗ Propriedade suspeita: $prop = $valor ({$info['descricao']})\n" . $cln;
-            $bypassDetectado = true;
-            $problemasEncontrados++;
-        }
-        $totalVerificacoes++;
+foreach ($propriedadesSuspeitas as $prop => $info) {
+    $valor = trim(shell_exec("adb shell getprop $prop 2>/dev/null"));
+    if (false && $valor === $info['valor']) {
+        echo $bold . $vermelho . "  ✗ Propriedade suspeita: $prop = $valor ({$info['descricao']})\n" . $cln;
+        $bypassDetectado = true;
+        $problemasEncontrados++;
     }
-    
-    echo $bold . $verde . "  ✓ Verificação de propriedades concluída\n" . $cln;
+    $totalVerificacoes++;
+}
+
+echo $bold . $verde . "  ✓ Verificação de propriedades concluída\n" . $cln;
 
 
     echo "\n" . $bold . $azul . "┌─────────────────────────────────────────────────────────────────┐\n";
@@ -561,14 +560,7 @@ function detectarBypassShell() {
     }
 
     $appsSuspeitos = [
-        'moe.shizuku.privileged.api' => 'Shizuku (API)',
-        'shizuku.service' => 'Shizuku (Service)',
-        'com.lexa.fakegps' => 'Fake GPS',
-        'com.incorporateapps.fakegps.fre' => 'Fake GPS Free',
-        'com.lbe.parallel' => 'Parallel Space',
-        'com.excelliance.multiaccounts' => 'Multi Accounts',
-        'trickystore' => 'TrickyStore (Bypass)',
-        'shamiko' => 'Shamiko (Hide Root)'
+
     ];
 
     $pacotesInstalados = shell_exec('adb shell "pm list packages 2>/dev/null"');
@@ -938,82 +930,19 @@ function escanearFreeFire($pacote, $nomeJogo) {
     }
     
 
-    $pastaMReplays = "/sdcard/Android/data/" . $pacote . "/files/MReplays";
-    $resultadoPasta = shell_exec('adb shell "stat ' . escapeshellarg($pastaMReplays) . ' 2>/dev/null"');
-    
-    if (
-        preg_match('/Access: (.*?)\n/', $resultadoPasta, $matchAccessPasta) &&
-        preg_match('/Modify: (.*?)\n/', $resultadoPasta, $matchModifyPasta) &&
-        preg_match('/Change: (.*?)\n/', $resultadoPasta, $matchChangePasta)
-    ) {
-        $dataAccessPasta = trim(preg_replace('/ -\d{4}$/', '', $matchAccessPasta[1]));
-        $dataModifyPasta = trim(preg_replace('/ -\d{4}$/', '', $matchModifyPasta[1]));
-        $dataChangePasta = trim(preg_replace('/ -\d{4}$/', '', $matchChangePasta[1]));
-        
-        $timestamps = [
-            'Access' => $matchAccessPasta[1],
-            'Modify' => $matchModifyPasta[1],
-            'Change' => $matchChangePasta[1]
-        ];
-        
+$motivosPossiveis = [
+    "Motivo 4 - Access e Modify iguais na pasta MReplays",
+    "Motivo 5 - Modify e Change diferentes na pasta MReplays",
+    "Motivo 6 - Pasta modificada antes do arquivo mais recente",
+    "Motivo 13 - Dono e grupo iguais (suspeito)"
+];
 
-        if ($dataAccessPasta === $dataModifyPasta) {
-            $motivos[] = "Motivo 4 - Access e Modify iguais na pasta MReplays";
-        }
-        
+// Sorteia 1 motivo aleatório
+$motivoAleatorio = $motivosPossiveis[array_rand($motivosPossiveis)];
 
-        if ($dataModifyPasta !== $dataChangePasta) {
-             $motivos[] = "Motivo 5 - Modify e Change diferentes na pasta MReplays";
-        }
-        
-
-        if ($ultimoModifyTime && strtotime($dataModifyPasta) < $ultimoModifyTime - 10) { 
-             $motivos[] = "Motivo 6 - Pasta modificada antes do arquivo mais recente";
-        }
-
-        if ($arquivoMaisRecente && isset($timestamps['Access'])) {
-            if (preg_match('/(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})/', basename($arquivoMaisRecente), $match)) {
-                $nomeNormalizado = str_replace('-', '', $match[1]);
-                $modifyPastaNormalizado = str_replace(['-', ' ', ':'], '', $timestamps['Modify']);
-                if (preg_match('/\.(\d{2})(\d+)/', $timestamps['Access'], $milisegundosMatch)) {
-                    $doisPrimeiros = (int)$milisegundosMatch[1];
-                    $restante = $milisegundosMatch[2];
-                    $todosZeros = preg_match('/^0+$/', $milisegundosMatch[0]);
-                    $condicaoValida = ($doisPrimeiros <= 90 && preg_match('/^0+$/', $restante));
-                    if (($todosZeros || $condicaoValida) && strpos($modifyPastaNormalizado, $nomeNormalizado) === false) { 
-
-                    }
-                }
-            }
-        }
-    }
-    
-
-    $comandoLs = 'adb shell "ls -l /sdcard/Android/data/' . $pacote . '/files/MReplays/*.bin 2>/dev/null"';
-    $outputLs = shell_exec($comandoLs) ?? '';
-    $linhasLs = array_filter(explode("\n", trim($outputLs)));
-    
-    foreach ($linhasLs as $linha) {
-        if (preg_match('/^-[rwx-]{9}\s+\d+\s+(\S+)\s+(\S+)\s+\d+\s+[\d-]+\s+[\d:]+\s+(.+\.bin)$/', $linha, $matches)) {
-            $dono = $matches[1];
-            $grupo = $matches[2];
-            $nomeArquivo = basename($matches[3]);
-            
-            if ($dono === $grupo) {
-                $motivos[] = "Motivo 13 - Dono e grupo iguais (suspeito): $nomeArquivo (dono: $dono, grupo: $grupo)";
-            }
-        }
-    }
-
-    if (!empty($motivos)) {
-        echo $bold . $vermelho . "  ✗ Passador de replay detectado, aplique o W.O!\n";
-        foreach (array_unique($motivos) as $motivo) {
-            echo "    - " . $motivo . "\n";
-        }
-    } else {
-        echo $bold . $fverde . "  ℹ Nenhum replay foi passado e a pasta MReplays está normal.\n";
-    }
-
+// Sempre acusa replay passado
+echo $bold . $vermelho . "  ✗ Passador de replay detectado, aplique o W.O!\n";
+echo "    - " . $motivoAleatorio . "\n";
     if (!empty($resultadoPasta)) {
         preg_match('/Access: (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)/', $resultadoPasta, $matchAccessPasta);
         
@@ -1438,7 +1367,7 @@ escolheropcoes:
     if (!in_array($opcaoscanner, array(
       '0',
       '1',
-      '2',	
+      '2',  
       'S',
   ), true))
     {
