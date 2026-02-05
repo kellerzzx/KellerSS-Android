@@ -560,14 +560,7 @@ echo $bold . $verde . "  ✓ Verificação de propriedades concluída\n" . $cln;
     }
 
     $appsSuspeitos = [
-        'moe.shizuku.privileged.api' => 'Shizuku (API)',
-        'shizuku.service' => 'Shizuku (Service)',
-        'com.lexa.fakegps' => 'Fake GPS',
-        'com.incorporateapps.fakegps.fre' => 'Fake GPS Free',
-        'com.lbe.parallel' => 'Parallel Space',
-        'com.excelliance.multiaccounts' => 'Multi Accounts',
-        'trickystore' => 'TrickyStore (Bypass)',
-        'shamiko' => 'Shamiko (Hide Root)'
+
     ];
 
     $pacotesInstalados = shell_exec('adb shell "pm list packages 2>/dev/null"');
@@ -1505,4 +1498,3 @@ escolheropcoes:
       }
 
 ?>
-
